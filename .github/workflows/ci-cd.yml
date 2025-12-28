@@ -33,22 +33,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Update docker-compose
-        run: |
-          sed -i 's|build: ./vote|image: acrtychka2025.azurecr.io/vote:latest|g' docker-compose.yml
-          sed -i 's|build: ./result|image: acrtychka2025.azurecr.io/result:latest|g' docker-compose.yml
-          sed -i 's|build: ./worker|image: acrtychka2025.azurecr.io/worker:latest|g' docker-compose.yml
-          echo "--- Content check ---"
-          cat docker-compose.yml
-
-      - name: Copy compose file to VM
+      - name: Copy ALL necessary files to VM
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.VM_SSH_HOST }}
           username: ${{ secrets.VM_SSH_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
-          source: "docker-compose.yml"
-          target: "~/"
+          # ТУТ ГЛАВНОЕ ИЗМЕНЕНИЕ: мы копируем и файл, и папки с кодом
+          source: "docker-compose.yml,vote,result,worker"
+          target: "/home/${{ secrets.VM_SSH_USER }}/"
 
       - name: Deploy on VM via SSH
         uses: appleboy/ssh-action@master
@@ -57,6 +50,7 @@ jobs:
           username: ${{ secrets.VM_SSH_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
           script: |
+            # Авторизуемся в вашем ACR
             echo "${{ secrets.ACR_PASSWORD }}" | sudo docker login acrtychka2025.azurecr.io -u acrtychka2025 --password-stdin
-            sudo docker compose pull
-            sudo docker compose up -d --remove-orphans --force-recreate
+            # Запускаем сборку прямо на ВМ, так как папки теперь там есть
+            sudo docker compose up -d --build --remove-orphans
