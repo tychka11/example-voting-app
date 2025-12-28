@@ -22,8 +22,8 @@ jobs:
       - name: Build and Push Images
         run: |
           for service in vote result worker; do
-            docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/$service:latest ./$service
-            docker push ${{ secrets.ACR_LOGIN_SERVER }}/$service:latest
+            docker build -t acrtychka2025.azurecr.io/$service:latest ./$service
+            docker push acrtychka2025.azurecr.io/$service:latest
           done
 
   deploy:
@@ -33,15 +33,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Update docker-compose with ACR images
+      - name: Update docker-compose
         run: |
-          # Використовуємо регулярні вирази, щоб знайти 'build:' і замінити весь рядок на 'image:'
-          sed -i "s|build:.*vote|image: ${{ secrets.ACR_LOGIN_SERVER }}/vote:latest|g" docker-compose.yml
-          sed -i "s|build:.*result|image: ${{ secrets.ACR_LOGIN_SERVER }}/result:latest|g" docker-compose.yml
-          sed -i "s|build:.*worker|image: ${{ secrets.ACR_LOGIN_SERVER }}/worker:latest|g" docker-compose.yml
-          
-          # Перевірка (ви побачите результат заміни в логах GitHub)
-          echo "--- Updated docker-compose.yml ---"
+          sed -i 's|build: ./vote|image: acrtychka2025.azurecr.io/vote:latest|g' docker-compose.yml
+          sed -i 's|build: ./result|image: acrtychka2025.azurecr.io/result:latest|g' docker-compose.yml
+          sed -i 's|build: ./worker|image: acrtychka2025.azurecr.io/worker:latest|g' docker-compose.yml
+          echo "--- Content check ---"
           cat docker-compose.yml
 
       - name: Copy compose file to VM
@@ -60,9 +57,6 @@ jobs:
           username: ${{ secrets.VM_SSH_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
           script: |
-            # Логін у реєстр (пароль ви вже додали в секрети)
-            echo "${{ secrets.ACR_PASSWORD }}" | sudo docker login ${{ secrets.ACR_LOGIN_SERVER }} -u acrtychka2025 --password-stdin
-            
-            # Примусове оновлення: зупиняємо, підтягуємо нове, запускаємо
+            echo "${{ secrets.ACR_PASSWORD }}" | sudo docker login acrtychka2025.azurecr.io -u acrtychka2025 --password-stdin
             sudo docker compose pull
             sudo docker compose up -d --remove-orphans --force-recreate
