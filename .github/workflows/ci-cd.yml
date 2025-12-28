@@ -35,6 +35,7 @@ jobs:
 
       - name: Update docker-compose with ACR images
         run: |
+          # Замінюємо шлях збірки на готовий образ з вашого ACR
           sed -i 's/build: .\/vote/image: ${{ secrets.ACR_LOGIN_SERVER }}\/vote:latest/g' docker-compose.yml
           sed -i 's/build: .\/result/image: ${{ secrets.ACR_LOGIN_SERVER }}\/result:latest/g' docker-compose.yml
           sed -i 's/build: .\/worker/image: ${{ secrets.ACR_LOGIN_SERVER }}\/worker:latest/g' docker-compose.yml
@@ -55,7 +56,8 @@ jobs:
           username: ${{ secrets.VM_SSH_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
           script: |
-            # Логінимося в ACR на самій VM, щоб вона могла стягнути образи
+            # Авторизація в ACR на VM (тепер az встановлено)
             sudo az acr login --name acrtychka2025
-            docker compose pull
-            docker compose up -d --remove-orphans
+            # Оновлення образів та перезапуск контейнерів з правами sudo
+            sudo docker compose pull
+            sudo docker compose up -d --remove-orphans
