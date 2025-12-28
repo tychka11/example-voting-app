@@ -1,86 +1,45 @@
-# version is now using "compose spec"
-# v2 and v3 are now combined!
-# docker-compose v1.27+ required
+version: '3.8'
 
 services:
   vote:
     image: acrtychka2025.azurecr.io/vote:latest
+    ports:
+      - "5000:80"
     depends_on:
       redis:
         condition: service_healthy
-    healthcheck: 
-      test: ["CMD", "curl", "-f", "http://localhost"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-    ports:
-      - "8080:80"
-    networks:
-      - front-tier
-      - back-tier
 
   result:
     image: acrtychka2025.azurecr.io/result:latest
-    # use nodemon rather than node for local dev
-    entrypoint: nodemon --inspect=0.0.0.0 server.js
+    ports:
+      - "5001:80"
     depends_on:
       db:
-        condition: service_healthy 
-    ports:
-      - "8081:80"
-      - "127.0.0.1:9229:9229"
-    networks:
-      - front-tier
-      - back-tier
+        condition: service_healthy
 
   worker:
     image: acrtychka2025.azurecr.io/worker:latest
     depends_on:
       redis:
-        condition: service_healthy 
+        condition: service_healthy
       db:
-        condition: service_healthy 
-    networks:
-      - back-tier
+        condition: service_healthy
 
   redis:
     image: redis:alpine
-    volumes:
-      - "./healthchecks:/healthchecks"
     healthcheck:
-      test: /healthchecks/redis.sh
-      interval: "5s"
-    networks:
-      - back-tier
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   db:
     image: postgres:15-alpine
     environment:
-      POSTGRES_USER: "postgres"
-      POSTGRES_PASSWORD: "postgres"
-    volumes:
-      - "db-data:/var/lib/postgresql/data"
-      - "./healthchecks:/healthchecks"
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
     healthcheck:
-      test: /healthchecks/postgres.sh
-      interval: "5s"
-    networks:
-      - back-tier
-
-  seed:
-    build: ./seed-data
-    profiles: ["seed"]
-    depends_on:
-      vote:
-        condition: service_healthy 
-    networks:
-      - front-tier
-    restart: "no"
-
-volumes:
-  db-data:
-
-networks:
-  front-tier:
-  back-tier:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
