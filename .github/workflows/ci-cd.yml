@@ -19,7 +19,7 @@ jobs:
       - name: Login to ACR
         run: az acr login --name acrtychka2025
 
-      - name: Build and Push Images
+      - name: Build and Push Images to ACR
         run: |
           for service in vote result worker; do
             docker build -t acrtychka2025.azurecr.io/$service:latest ./$service
@@ -33,14 +33,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Copy ALL necessary files to VM
+      - name: Copy docker-compose to VM
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.VM_SSH_HOST }}
           username: ${{ secrets.VM_SSH_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
-          # ТУТ ГЛАВНОЕ ИЗМЕНЕНИЕ: мы копируем и файл, и папки с кодом
-          source: "docker-compose.yml,vote,result,worker"
+          source: "docker-compose.yml"
           target: "/home/${{ secrets.VM_SSH_USER }}/"
 
       - name: Deploy on VM via SSH
@@ -50,7 +49,7 @@ jobs:
           username: ${{ secrets.VM_SSH_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
           script: |
-            # Авторизуемся в вашем ACR
             echo "${{ secrets.ACR_PASSWORD }}" | sudo docker login acrtychka2025.azurecr.io -u acrtychka2025 --password-stdin
-            # Запускаем сборку прямо на ВМ, так как папки теперь там есть
-            sudo docker compose up -d --build --remove-orphans
+            cd ~
+            sudo docker compose pull
+            sudo docker compose up -d --remove-orphans
